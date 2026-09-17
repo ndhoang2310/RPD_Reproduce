@@ -57,6 +57,18 @@ def config(path_to_config_file) -> Dict:
     with open(path_to_config_file, 'r') as istream:
         config = yaml.safe_load(istream)
 
+    current_path = config.get('data', {}).get('path_to_dataset', '')
+    if not os.path.exists(current_path):
+        for cand in [
+            "/kaggle/input/datasets/ndhoang2310/phenobench-dataset/PhenoBench",
+            "/kaggle/input/phenobench-dataset/PhenoBench",
+            "/kaggle/input/datasets/ndhoang2310/phenobench-dataset",
+            "/kaggle/input/phenobench-dataset",
+        ]:
+            if os.path.exists(os.path.join(cand, "train", "images")):
+                config['data']['path_to_dataset'] = cand
+                break
+
     return config
 
 

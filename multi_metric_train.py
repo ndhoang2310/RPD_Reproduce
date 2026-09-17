@@ -53,6 +53,21 @@ def load_config(path_to_config_file: str) -> Dict:
     with open(path_to_config_file) as istream:
         config = yaml.safe_load(istream)
 
+    # Tự động dò tìm dataset PhenoBench trên Kaggle nếu đường dẫn trong YAML không tồn tại
+    current_path = config.get('data', {}).get('path_to_dataset', '')
+    if not os.path.exists(current_path):
+        candidates = [
+            "/kaggle/input/datasets/ndhoang2310/phenobench-dataset/PhenoBench",
+            "/kaggle/input/phenobench-dataset/PhenoBench",
+            "/kaggle/input/datasets/ndhoang2310/phenobench-dataset",
+            "/kaggle/input/phenobench-dataset",
+        ]
+        for cand in candidates:
+            if os.path.exists(os.path.join(cand, "train", "images")):
+                print(f"[Auto-Detect] Thay thế đường dẫn dataset thành: {cand}")
+                config['data']['path_to_dataset'] = cand
+                break
+
     return config
 
 

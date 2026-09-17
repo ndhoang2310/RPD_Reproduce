@@ -7,7 +7,7 @@ experiment:
    id: 'phenobench'
 data:
   name: phenobench
-  path_to_dataset: /home/cfh/DataSet/PhenoBench_v110
+  path_to_dataset: /kaggle/input/datasets/ndhoang2310/phenobench-dataset/PhenoBench
   num_workers: 4
   image_normalizer:
     name: single_image_normalizer

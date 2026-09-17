@@ -5,7 +5,7 @@ import torch.backends.cudnn
 import yaml
 from typing import Dict
 
-from modules import get_backbone, get_criterion, module, convert_block
+from models import get_backbone, get_criterion, module, convert_block
 from datasets import get_data_module
 from callbacks import *
 import os

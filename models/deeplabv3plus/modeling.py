@@ -1,6 +1,6 @@
-from models.deeplab.utils import IntermediateLayerGetter
-from models.deeplab._deeplab import DeepLabHead, DeepLabHeadV3Plus, DeepLabV3
-from models.deeplab import resnet
+from .utils import IntermediateLayerGetter
+from ._deeplab import DeepLabHead, DeepLabHeadV3Plus, DeepLabV3
+from . import resnet
 
 
 def _segm_resnet(name, backbone_name, num_classes, output_stride, pretrained_backbone):

@@ -1,3 +1,6 @@
+from typing import Dict
+from torch import nn
+
 from .deeplabv3plus.modeling import deeplabv3plus_resnet50
 from .rpdnet import RPDNet
 from .erf import ERFNetModel
@@ -5,9 +8,10 @@ from .segnext import SegNext
 from .segformer import SegFormer
 from .efficientvit import EfficientViTSeg
 from .model_multimetrics import *
+from . import model_multimetrics as module
 from .fgnet import FGNet
 from .losses import *
-from .RPD_ops import *
+from .rpdnet.RPD_ops import *
 
 
 def get_backbone(cfg: Dict) -> nn.Module:

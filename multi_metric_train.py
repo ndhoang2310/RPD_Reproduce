@@ -14,7 +14,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, Ea
 
 from callbacks import (ConfigCallback, PostprocessorCallback, VisualizerCallback, get_postprocessors, get_visualizers)
 from datasets import get_data_module
-from modules import get_backbone, get_criterion, model_multimetrics
+from models import get_backbone, get_criterion, model_multimetrics
 
 import torch
 

@@ -14,7 +14,7 @@ from torch import Tensor
 import torchvision.transforms.functional as functional
 from torchvision import transforms
 
-from pdc_datasets import augmentations_augmix as augmentations_augmix
+from . import augmentations_augmix as augmentations_augmix
 
 
 def rgb_to_hsv(image: object, eps: object = 1e-8) -> object:

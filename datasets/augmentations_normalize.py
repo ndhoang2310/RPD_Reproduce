@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict
 
 from torchvision import transforms
-from pdc_datasets.pdc_common import *
+from .pdc_common import *
 
 
 class ImageNormalizer(ABC):

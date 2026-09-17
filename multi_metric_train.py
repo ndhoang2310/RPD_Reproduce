@@ -7,6 +7,13 @@ import pdb
 import time
 from typing import Dict
 
+# NumPy 2.0 compatibility patch for older PyTorch Lightning / TorchMetrics
+import numpy as np
+for _alias, _target in [('Inf', np.inf), ('Infinity', np.inf), ('infty', np.inf),
+                        ('NaN', np.nan), ('bool', bool), ('int', int), ('float', float)]:
+    if not hasattr(np, _alias):
+        setattr(np, _alias, _target)
+
 import yaml
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger

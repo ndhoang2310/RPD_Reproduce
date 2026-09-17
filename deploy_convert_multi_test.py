@@ -1,4 +1,11 @@
 import argparse
+
+import numpy as np
+for _alias, _target in [('Inf', np.inf), ('Infinity', np.inf), ('infty', np.inf),
+                        ('NaN', np.nan), ('bool', bool), ('int', int), ('float', float)]:
+    if not hasattr(np, _alias):
+        setattr(np, _alias, _target)
+
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer, Callback
 import torch.backends.cudnn

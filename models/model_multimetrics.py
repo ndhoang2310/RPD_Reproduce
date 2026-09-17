@@ -411,14 +411,16 @@ class SegmentationNetwork(pl.LightningModule):
         self.test_step_outputs.clear()
 
     def lr_scaling(self, current_epoch: int) -> float:
-        warm_up_epochs = 16
+        total_epochs = max(getattr(self.trainer, 'max_epochs', 100) or 100, 1)
+        warm_up_epochs = min(16, max(1, total_epochs // 5))
         if current_epoch <= warm_up_epochs:
             lr_scale = current_epoch / warm_up_epochs
         else:
-            lr_scale = pow(
-                (1 - ((current_epoch - (warm_up_epochs + 1)) / (self.trainer.max_epochs - (warm_up_epochs + 1)))), 3.0)
+            denom = max(total_epochs - (warm_up_epochs + 1), 1)
+            progress = min(max((current_epoch - (warm_up_epochs + 1)) / denom, 0.0), 1.0)
+            lr_scale = pow(1.0 - progress, 3.0)
 
-        return lr_scale
+        return max(float(lr_scale), 1e-6)
 
     def configure_optimizers(self) -> Tuple[List[optim.Optimizer], List[optim.lr_scheduler.LambdaLR]]:
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)

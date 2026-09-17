@@ -185,15 +185,15 @@ class SegmentationNetwork(pl.LightningModule):
 
         # accumulate all losses
         my_local_loss_values = {var_name: var_value for var_name, var_value in locals().items() if
-                                var_name.startswith('loss')}
+                                var_name.startswith('loss_')}
         loss = torch.sum(torch.stack(list(my_local_loss_values.values())))
 
-        out_dict = {'loss': loss, 'logits': logits_regular, 'anno': batch['anno']}
-        self.training_step_outputs.append(out_dict)
-        out_dict.update(my_local_loss_values)
-        del my_local_loss_values
+        # CRITICAL MEMORY FIX: Only save detached loss scalars, do NOT retain graph or large tensors
+        saved_dict = {k: v.detach() for k, v in my_local_loss_values.items()}
+        saved_dict['loss'] = loss.detach()
+        self.training_step_outputs.append(saved_dict)
 
-        return out_dict
+        return {'loss': loss}
 
     def on_train_epoch_end(self) -> None:
         epoch = self.trainer.current_epoch
@@ -279,7 +279,7 @@ class SegmentationNetwork(pl.LightningModule):
         self.metric_val_acc_micro.update(pred, batch['anno'])  # micro Accuracy
         self.metric_val_recall.update(pred, batch['anno'])  # Sensitivity/Recall
 
-        validation_out = {'loss': loss, 'logits': logits, 'anno': batch['anno']}
+        validation_out = {'loss': loss.detach()}
         self.validation_step_outputs.append(validation_out)
 
         return validation_out

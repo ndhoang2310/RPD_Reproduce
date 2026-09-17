@@ -7,6 +7,7 @@ import warnings
 
 # Tắt tất cả warnings rác từ thư viện cũ
 os.environ["PYTHONWARNINGS"] = "ignore"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 warnings.filterwarnings("ignore")
 
 # NumPy 2.0 compatibility patch for older PyTorch Lightning / TorchMetrics

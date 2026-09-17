@@ -5,7 +5,7 @@ import torch
 import torch.autograd
 import torch.nn as nn
 import torch.nn.functional as F
-import wget
+import urllib.request
 
 
 class DownsamplerBlock(nn.Module):
@@ -166,7 +166,7 @@ class ERFNetModel(nn.Module):
             # use this argument to load a pretrained model with encoder trained on ImageNet and decoder trained on Cityscapes train set.
             remote_url = "https://uni-bonn.sciebo.de/s/4nPlQuqbHwyOjIi/download"
             local_file = os.path.abspath("erfnet_pretrained_cvt.pth")
-            wget.download(remote_url, local_file)
+            urllib.request.urlretrieve(remote_url, local_file)
 
             ckpt_dict = torch.load(local_file)
             os.remove(local_file)

@@ -93,9 +93,10 @@ def main():
 
     # Setup trainer
     trainer = Trainer(default_root_dir=args['export_dir'],
+                      accelerator=cfg['val'].get('accelerator', 'auto'),
                       max_epochs=cfg['train']['max_epoch'],
-                      devices=cfg['val']['devices'],
-                      num_nodes=cfg['val']['num_nodes'],
+                      devices=cfg['val'].get('devices', 'auto'),
+                      num_nodes=cfg['val'].get('num_nodes', 1),
                       callbacks=[visualizer_callback,
                                  postprocessor_callback,
                                  config_callback])

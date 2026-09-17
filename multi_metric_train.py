@@ -177,7 +177,9 @@ def main():
 
     # Setup trainer
     trainer = Trainer(
-        benchmark=cfg['train']['benchmark'],
+        accelerator=cfg['train'].get('accelerator', 'auto'),
+        devices=cfg['train'].get('devices', 'auto'),
+        benchmark=cfg['train'].get('benchmark', True),
         default_root_dir=args['export_dir'],
         max_epochs=cfg['train']['max_epoch'],
         check_val_every_n_epoch=cfg['val']['check_val_every_n_epoch'],

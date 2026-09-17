@@ -3,16 +3,23 @@
 import argparse
 from calendar import c
 import os
-import pdb
-import time
-from typing import Dict
+import warnings
+
+# Tắt tất cả warnings rác từ thư viện cũ
+os.environ["PYTHONWARNINGS"] = "ignore"
+warnings.filterwarnings("ignore")
 
 # NumPy 2.0 compatibility patch for older PyTorch Lightning / TorchMetrics
 import numpy as np
-for _alias, _target in [('Inf', np.inf), ('Infinity', np.inf), ('infty', np.inf),
-                        ('NaN', np.nan), ('bool', bool), ('int', int), ('float', float)]:
-    if not hasattr(np, _alias):
-        setattr(np, _alias, _target)
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    for _alias, _target in [('Inf', np.inf), ('Infinity', np.inf), ('infty', np.inf),
+                            ('NaN', np.nan), ('bool', bool), ('int', int), ('float', float)]:
+        try:
+            if not hasattr(np, _alias):
+                setattr(np, _alias, _target)
+        except Exception:
+            pass
 
 import yaml
 from pytorch_lightning import Trainer, seed_everything
@@ -175,10 +182,18 @@ def main():
         verbose=True
     )
 
+    # Setup strategy
+    train_devices = cfg['train'].get('devices', 'auto')
+    train_strategy = cfg['train'].get('strategy', 'auto')
+    if train_strategy == 'auto' and torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        from pytorch_lightning.strategies import DDPStrategy
+        train_strategy = DDPStrategy(find_unused_parameters=False)
+
     # Setup trainer
     trainer = Trainer(
         accelerator=cfg['train'].get('accelerator', 'auto'),
-        devices=cfg['train'].get('devices', 'auto'),
+        devices=train_devices,
+        strategy=train_strategy,
         benchmark=cfg['train'].get('benchmark', True),
         default_root_dir=args['export_dir'],
         max_epochs=cfg['train']['max_epoch'],

@@ -54,73 +54,69 @@ class Conv2d(nn.Module):
 ## cd, ad, rd convolutions
 ## theta could be used to control the vanilla conv components
 ## theta = 0 reduces the function to vanilla conv, theta = 1 reduces the function to pure pdc
-def createConvFunc(op_type, theta=0.7):
-    assert op_type in ['cv', 'cd', 'ad', 'rd', 'erd'], 'unknown op type: %s' % str(op_type)
-    if op_type == 'cv':
-        return F.conv2d
+class ConvOp:
+    def __init__(self, op_type, theta=0.7):
+        assert op_type in ['cv', 'cd', 'ad', 'rd', 'erd'], 'unknown op type: %s' % str(op_type)
+        assert 0.0 <= theta <= 1.0, 'theta should be within [0, 1]'
+        self.op_type = op_type
+        self.theta = theta
 
-    assert theta >= 0 and theta <= 1.0, 'theta should be within (0, 1]'
+    def __call__(self, x, weights, bias=None, stride=1, padding=0, dilation=1, groups=1):
+        if self.op_type == 'cv':
+            return F.conv2d(x, weights, bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
 
-    if op_type == 'cd':
-        def func(x, weights, bias=None, stride=1, padding=0, dilation=1, groups=1):
+        elif self.op_type == 'cd':
             assert dilation in [1, 2], 'dilation for cd_conv should be in 1 or 2'
             assert weights.size(2) == 3 and weights.size(3) == 3, 'kernel size for cd_conv should be 3x3'
             assert padding == dilation, 'padding for cd_conv set wrong'
 
-            weights_c = weights.sum(dim=[2, 3], keepdim=True) * theta
+            weights_c = weights.sum(dim=[2, 3], keepdim=True) * self.theta
             yc = F.conv2d(x, weights_c, stride=stride, padding=0, groups=groups)
             y = F.conv2d(x, weights, bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
             return y - yc
 
-        return func
-    elif op_type == 'ad':
-        def func(x, weights, bias=None, stride=1, padding=0, dilation=1, groups=1):
+        elif self.op_type == 'ad':
             assert dilation in [1, 2], 'dilation for ad_conv should be in 1 or 2'
             assert weights.size(2) == 3 and weights.size(3) == 3, 'kernel size for ad_conv should be 3x3'
             assert padding == dilation, 'padding for ad_conv set wrong'
 
             shape = weights.shape
-            weights = weights.view(shape[0], shape[1], -1)
-            weights_conv = (weights - theta * weights[:, :, [3, 0, 1, 6, 4, 2, 7, 8, 5]]).view(shape)  # clock-wise
+            weights_flat = weights.view(shape[0], shape[1], -1)
+            weights_conv = (weights_flat - self.theta * weights_flat[:, :, [3, 0, 1, 6, 4, 2, 7, 8, 5]]).view(shape)
             y = F.conv2d(x, weights_conv, bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
             return y
 
-        return func
-    elif op_type == 'rd':
-        def func(x, weights, bias=None, stride=1, padding=0, dilation=1, groups=1):
+        elif self.op_type == 'rd':
             assert dilation in [1, 2], 'dilation for rd_conv should be in 1 or 2'
             assert weights.size(2) == 3 and weights.size(3) == 3, 'kernel size for rd_conv should be 3x3'
             padding = 2 * dilation
 
             shape = weights.shape
-            if weights.is_cuda:
-                buffer = torch.tensor([0], dtype=torch.float32, device='cuda').repeat(shape[0], shape[1], 5 * 5)
-            else:
-                buffer = torch.zeros(shape[0], shape[1], 5 * 5)
-            weights = weights.view(shape[0], shape[1], -1)
-            buffer[:, :, [0, 2, 4, 10, 14, 20, 22, 24]] = weights[:, :, 1:]
-            buffer[:, :, [6, 7, 8, 11, 13, 16, 17, 18]] = -weights[:, :, 1:] * theta
-            buffer[:, :, 12] = weights[:, :, 0] * (1 - theta)
+            buffer = torch.zeros(shape[0], shape[1], 5 * 5, dtype=torch.float32, device=weights.device)
+            weights_flat = weights.view(shape[0], shape[1], -1)
+            buffer[:, :, [0, 2, 4, 10, 14, 20, 22, 24]] = weights_flat[:, :, 1:]
+            buffer[:, :, [6, 7, 8, 11, 13, 16, 17, 18]] = -weights_flat[:, :, 1:] * self.theta
+            buffer[:, :, 12] = weights_flat[:, :, 0] * (1 - self.theta)
             buffer = buffer.view(shape[0], shape[1], 5, 5)
             y = F.conv2d(x, buffer, bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
             return y
 
-        return func
-
-    elif op_type == 'erd':
-        def func(x, weights, bias=None, stride=1, padding=0, dilation=1, groups=1):
+        elif self.op_type == 'erd':
             assert dilation in [1, 2]
             assert weights.size(2) == 3 and weights.size(3) == 3
 
-            weights_conv = (weights - weights.sum(dim=[2, 3], keepdim=True)) * theta
+            weights_conv = (weights - weights.sum(dim=[2, 3], keepdim=True)) * self.theta
             y = F.conv2d(x, weights_conv, bias, stride=stride, padding=2, dilation=2, groups=groups)
             return y
 
-        return func
+        else:
+            raise ValueError(f'unknown op type: {self.op_type}')
 
-    else:
-        print('impossible to be here unless you force that')
-        return None
+
+def createConvFunc(op_type, theta=0.7):
+    if op_type == 'cv':
+        return F.conv2d
+    return ConvOp(op_type, theta=theta)
 
 
 def convert_pdc(op_type, weight):

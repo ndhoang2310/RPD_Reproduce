@@ -1,0 +1,134 @@
+backbone:
+  name: RPDNet
+  num_classes: 3
+  pretrained: false
+data:
+  image_normalizer:
+    name: single_image_normalizer
+  name: phenobench
+  num_workers: 4
+  path_to_dataset: /kaggle/input/datasets/ndhoang2310/phenobench-dataset/PhenoBench
+experiment:
+  id: phenobench
+postprocessors:
+  arg_max_classes_postprocessor: null
+seed: 1682409321
+test:
+  batch_size: 1
+  devices: auto
+  geometric_data_augmentations:
+    center_crop:
+      height: 1024
+      width: 1024
+  step_settings:
+  - regular
+train:
+  batch_size: 4
+  benchmark: true
+  class_weights:
+  - 1.47
+  - 5.06
+  - 10.02
+  color_data_augmentations:
+    random_global_brightness:
+      max_brightness_factor: 1.4
+      min_brightness_factor: 0.6
+    random_global_contrast:
+      max_contrast_factor: 1.4
+      min_contrast_factor: 0.6
+    random_global_hue:
+      max_hue_factor: 0.0125
+      min_hue_factor: -0.0125
+    random_global_saturation:
+      max_saturation_factor: 1.2
+      min_saturation_factor: 0.8
+  devices: auto
+  geometric_data_augmentations:
+    random_crop:
+      height: 768
+      width: 768
+    random_hflip: null
+    random_scale:
+      max_scale: 1.1
+      min_scale: 1.0
+    random_vflip: null
+  learning_rate: 0.0005
+  loss: xentropy
+  max_epoch: 100
+  postprocess_train_every_x_epochs: 4096
+  shuffle: true
+  step_settings:
+  - regular
+  vis_train_every_x_epochs: 4096
+  weight_decay: 0.0002
+val:
+  batch_size: 2
+  check_val_every_n_epoch: 5
+  devices: 1
+  geometric_data_augmentations:
+    center_crop:
+      height: 1024
+      width: 1024
+  num_nodes: 1
+  postprocess_val_every_x_epochs: 600
+  step_settings:
+  - regular
+  vis_val_every_x_epochs: 600
+visualizers:
+  ground_truth_visualizer:
+    classes_to_colors:
+      0:
+      - 0
+      - 0
+      - 0
+      1:
+      - 0
+      - 255
+      - 0
+      2:
+      - 255
+      - 0
+      - 0
+  input_image_visualizer: null
+  semantic_map_visualizer:
+    classes_to_colors:
+      0:
+      - 0
+      - 0
+      - 0
+      1:
+      - 0
+      - 255
+      - 0
+      2:
+      - 255
+      - 0
+      - 0
+  semantic_overlay_correct_incorrect_visualizer:
+    classes_to_colors:
+      0:
+      - 0
+      - 0
+      - 0
+      1:
+      - 0
+      - 255
+      - 0
+      2:
+      - 255
+      - 0
+      - 0
+  semantic_overlay_visualizer:
+    classes_to_colors:
+      0:
+      - 0
+      - 0
+      - 0
+      1:
+      - 0
+      - 255
+      - 0
+      2:
+      - 255
+      - 0
+      - 0

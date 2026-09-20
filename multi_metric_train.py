@@ -35,15 +35,33 @@ from models import get_backbone, get_criterion, model_multimetrics
 
 import torch
 
-def parse_args() -> Dict[str, str]:
-    parser = argparse.ArgumentParser()
+def parse_args() -> Dict[str, Any]:
+    parser = argparse.ArgumentParser(description='Train RPD Semantic Segmentation Model')
     parser.add_argument('--export_dir', default='log_dir/', help='Path to export dir which saves logs, metrics, etc.')
     parser.add_argument('--config', default='./config/config_deeplearn.yaml',
                         help="Path to configuration file (*.yaml)")
     parser.add_argument('--ckpt_path', default=None, help='Provide *.ckpt file to continue training.')
-    parser.add_argument('--resume', default=False, action='store_true')
-    args = vars(parser.parse_args())
+    parser.add_argument('--resume', default=False, action='store_true', help='Resume training state from checkpoint')
+    
+    # Các tham số tiện lợi khi chạy trên server SSH
+    parser.add_argument('--dataset_dir', default=None, type=str,
+                        help='Override path_to_dataset in config (e.g. /data/PhenoBench)')
+    parser.add_argument('--batch_size', default=None, type=int,
+                        help='Override training batch_size (default: from config, e.g. 4)')
+    parser.add_argument('--max_epoch', default=None, type=int,
+                        help='Override training max_epoch (default: from config)')
+    parser.add_argument('--devices', default=None, type=str,
+                        help='Override GPU devices (e.g. 1, "0,", "auto")')
+    parser.add_argument('--num_workers', default=None, type=int,
+                        help='Override DataLoader num_workers (e.g. 8 for high-RAM server)')
+    parser.add_argument('--check_val_every_n_epoch', default=None, type=int,
+                        help='Override validation frequency')
+    parser.add_argument('--early_stopping_patience', default=None, type=int,
+                        help='Patience for EarlyStopping (set 0 or negative to disable EarlyStopping)')
+    parser.add_argument('--no_early_stopping', default=False, action='store_true',
+                        help='Completely disable EarlyStopping to train for full epochs')
 
+    args = vars(parser.parse_args())
     return args
 
 
@@ -74,7 +92,34 @@ def load_config(path_to_config_file: str) -> Dict:
 def main():
     args = parse_args()
 
-    cfg = load_config(args['config']) 
+    cfg = load_config(args['config'])
+
+    # Áp dụng CLI overrides (nếu người dùng truyền vào từ dòng lệnh)
+    if args['dataset_dir']:
+        cfg['data']['path_to_dataset'] = args['dataset_dir']
+        print(f"[Config Override] path_to_dataset -> {args['dataset_dir']}")
+
+    if args['batch_size'] is not None:
+        cfg['train']['batch_size'] = args['batch_size']
+        print(f"[Config Override] batch_size -> {args['batch_size']}")
+
+    if args['max_epoch'] is not None:
+        cfg['train']['max_epoch'] = args['max_epoch']
+        print(f"[Config Override] max_epoch -> {args['max_epoch']}")
+
+    if args['devices'] is not None:
+        dev_val = int(args['devices']) if args['devices'].isdigit() else args['devices']
+        cfg['train']['devices'] = dev_val
+        cfg['val']['devices'] = 1 if isinstance(dev_val, int) else dev_val
+        print(f"[Config Override] devices -> {dev_val}")
+
+    if args['num_workers'] is not None:
+        cfg['data']['num_workers'] = args['num_workers']
+        print(f"[Config Override] num_workers -> {args['num_workers']}")
+
+    if args['check_val_every_n_epoch'] is not None:
+        cfg['val']['check_val_every_n_epoch'] = args['check_val_every_n_epoch']
+        print(f"[Config Override] check_val_every_n_epoch -> {args['check_val_every_n_epoch']}")
     
     if cfg.get('seed') is None:
         seed_val = int(time.time())
@@ -190,15 +235,36 @@ def main():
     postprocessor_callback = PostprocessorCallback(get_postprocessors(cfg),
                                                    cfg['train']['postprocess_train_every_x_epochs'],
                                                    cfg['val']['postprocess_val_every_x_epochs'])
-    config_callback = ConfigCallback(cfg)
+    all_callbacks = [
+        *my_checkpoint_savers,
+        lr_monitor,
+        visualizer_callback,
+        postprocessor_callback,
+        config_callback,
+    ]
 
-    early_stopping = EarlyStopping(
-        monitor='val_loss',  
-        patience=3,  
-        min_delta=0.001,  
-        mode='min', 
-        verbose=True
-    )
+    # Cấu hình EarlyStopping linh hoạt
+    use_early_stopping = not args['no_early_stopping']
+    patience = args['early_stopping_patience']
+    if patience is not None and patience <= 0:
+        use_early_stopping = False
+
+    if use_early_stopping:
+        actual_patience = patience if patience is not None else cfg['train'].get('early_stopping_patience', 10)
+        early_stopping = EarlyStopping(
+            monitor='val_loss',
+            patience=actual_patience,
+            min_delta=0.001,
+            mode='min',
+            verbose=True
+        )
+        all_callbacks.append(early_stopping)
+        print(f"[EarlyStopping] Kích hoạt với patience = {actual_patience}")
+    else:
+        print("[EarlyStopping] Đã tắt, mô hình sẽ huấn luyện đủ max_epoch theo cấu hình paper.")
+
+    # Đảm bảo export_dir tồn tại
+    os.makedirs(args['export_dir'], exist_ok=True)
 
     # Setup strategy
     train_devices = cfg['train'].get('devices', 'auto')
@@ -216,12 +282,7 @@ def main():
         default_root_dir=args['export_dir'],
         max_epochs=cfg['train']['max_epoch'],
         check_val_every_n_epoch=cfg['val']['check_val_every_n_epoch'],
-        callbacks=[*my_checkpoint_savers,
-                   lr_monitor,
-                   visualizer_callback,
-                   postprocessor_callback,
-                   config_callback,
-                   early_stopping])
+        callbacks=all_callbacks)
 
     if args['ckpt_path'] is None:
         print('Train from scratch.')

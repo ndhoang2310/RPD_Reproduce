@@ -26,9 +26,11 @@ def RPD_model_deploy(model: torch.nn.Module, ckpt_dict, save_path=None, do_copy=
         if hasattr(module, 'switch_to_deploy'):
             module.switch_to_deploy()
     if save_path is not None:
+        os.makedirs(save_path, exist_ok=True)
         save_path_convert = os.path.join(save_path, 'deploy_model.ckpt')
         ckpt_dict['state_dict'] = model.state_dict()
         torch.save(ckpt_dict, save_path_convert)
+        print(f"Saved deployed single-branch model to: {save_path_convert}")
     return model
 
 
@@ -41,10 +43,10 @@ def parse_args():
     parser.add_argument('--config', default='./config/config_deploy_convert.yaml',
                         help="Path to configuration file (*.yaml)")
     parser.add_argument('--convert_ckpt_path', type=str,
-                        # default='/home/cfh/EDB/log_dir/convert_path/convert_pdc_weights.pth',
-                        default='/home/cfh/EDB/log_dir/lightning_logs/version_97/checkpoints/phenobench_epoch=4095_train_mIoU=0.9074.ckpt',
-                        # default='G:\BaiduNetdiskDownload\EDB\log_dir\convert_path\convert_pdc_weights.ckpt',
-                        help='Provide converted *.ckpt file to load.')
+                        default='',
+                        help='Provide converted *.ckpt/pth file to load.')
+    parser.add_argument('--dataset_dir', default=None, type=str,
+                        help='Override path_to_dataset in config')
 
     args = vars(parser.parse_args())
 
@@ -76,6 +78,8 @@ def main():
     args = parse_args()
 
     cfg = config(args['config'])
+    if args['dataset_dir']:
+        cfg['data']['path_to_dataset'] = args['dataset_dir']
 
     # define train_model
     if cfg['backbone']['convert']:

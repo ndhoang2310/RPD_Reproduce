@@ -1,0 +1,18 @@
+# Core Deep Learning Libraries
+numpy<2.0.0
+pytorch-lightning==1.9.5
+torchmetrics==0.11.4
+
+# Computer Vision & Image Processing
+torchvision
+timm
+scikit-image
+tifffile
+albumentations
+Pillow
+
+# Utilities & Visualization
+pyyaml
+tensorboard
+matplotlib
+tqdm

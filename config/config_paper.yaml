@@ -1,0 +1,112 @@
+# ==============================================================================
+# RPD-Net: Learning Efficient Crops and Weeds for Field Semantic Segmentation
+# Official Configuration File based on IEEE TGRS 2026 Paper
+# ==============================================================================
+
+seed: 1682409321
+# Alternative seeds reported in experiments:
+# seed: 3788966520
+# seed: 724297371
+# seed: 2745621
+# seed: 85181805
+
+experiment:
+  id: 'phenobench_rpdnet_paper'
+
+data:
+  name: phenobench
+  # Đường dẫn dataset có thể ghi đè qua CLI: --dataset_dir /path/to/PhenoBench
+  path_to_dataset: /kaggle/input/datasets/ndhoang2310/phenobench-dataset/PhenoBench
+  num_workers: 8        # Server trường có 108GB RAM, tận dụng 8-12 workers để load ảnh cực nhanh
+  image_normalizer:
+    name: single_image_normalizer
+
+backbone:
+  name: RPDNet          # Mô hình RPDNet (Re-parameterized Pixel Difference Network)
+  num_classes: 3        # 0: Background/Soil, 1: Crop (Sugarbeet), 2: Weed
+  pretrained: false     # Huấn luyện từ đầu (Train from scratch) theo đúng paper
+  deploy: false
+  convert: false
+
+train:
+  step_settings:
+    - regular
+  max_epoch: 300        # Số epoch huấn luyện (có thể đổi thành 4096 bằng cờ --max_epoch)
+  devices: 1            # 1 GPU (RTX 4090 24GB) hoặc auto
+  benchmark: True
+  loss: xentropy
+  learning_rate: 5.0e-4 # Learning rate chuẩn của bài báo: 0.0005 với Adam
+  weight_decay: 2.0e-04 # Weight decay chuẩn: 0.0002
+  batch_size: 4         # Batch size chuẩn của bài báo (an toàn tuyệt đối, tốn ~3.5GB VRAM trên 4090)
+  shuffle: true
+  early_stopping_patience: 20 # Dừng nếu 20 lần validation liên tiếp không cải thiện (dùng --no_early_stopping để tắt)
+  vis_train_every_x_epochs: 4096
+  postprocess_train_every_x_epochs: 4096
+
+  # Trọng số loss cho từng lớp để cân bằng mất cân đối dữ liệu (Weed chiếm rất ít pixel)
+  class_weights:
+    - 1.47              # Background
+    - 5.06              # Crop
+    - 10.02             # Weed (được phạt nặng nhất)
+
+  color_data_augmentations:
+    random_global_brightness:
+      min_brightness_factor: 0.6
+      max_brightness_factor: 1.4
+    random_global_contrast:
+      min_contrast_factor: 0.6
+      max_contrast_factor: 1.4
+    random_global_saturation:
+      min_saturation_factor: 0.8
+      max_saturation_factor: 1.2
+    random_global_hue:
+      min_hue_factor: -0.0125
+      max_hue_factor: 0.0125
+
+  geometric_data_augmentations:
+    random_hflip: null
+    random_vflip: null
+    random_scale:
+      min_scale: 1.0
+      max_scale: 1.1
+    random_crop:
+      height: 768
+      width: 768
+
+val:
+  step_settings:
+    - regular
+  devices: 1
+  num_nodes: 1
+  batch_size: 4         # 4090 24GB thoải mái chạy val batch 4
+  check_val_every_n_epoch: 5  # Đánh giá validation mỗi 5 epoch
+  vis_val_every_x_epochs: 600
+  postprocess_val_every_x_epochs: 600
+  geometric_data_augmentations:
+    center_crop:
+      height: 1024
+      width: 1024
+
+test:
+  step_settings:
+    - regular
+  devices: 1
+  batch_size: 1
+  geometric_data_augmentations:
+    center_crop:
+      height: 1024
+      width: 1024
+
+visualizers:
+  input_image_visualizer: null
+  semantic_map_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+  semantic_overlay_correct_incorrect_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+  semantic_overlay_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+  ground_truth_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+
+postprocessors:
+  arg_max_classes_postprocessor: null

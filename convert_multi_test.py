@@ -32,6 +32,8 @@ def parse_args():
     parser.add_argument('--deploy_model',
                         default='./log_dir/deploy_convert_multi_testing/deploy_model.ckpt',
                         help='Path to deploy file (*.ckpt/pth)')
+    parser.add_argument('--dataset_dir', default=None, type=str,
+                        help='Override path_to_dataset in config')
 
     args = vars(parser.parse_args())
 
@@ -63,6 +65,8 @@ def main():
     args = parse_args()
 
     cfg = load_config(args['config'])
+    if args['dataset_dir']:
+        cfg['data']['path_to_dataset'] = args['dataset_dir']
 
     datasetmodule = get_data_module(cfg)
     criterion = get_criterion(cfg)
@@ -71,6 +75,8 @@ def main():
 
     # define backbone
     network = get_backbone(cfg)
+
+    os.makedirs(args['export_dir'], exist_ok=True)
 
     if cfg['backbone']['deploy']:
         print("Deploy model !")
@@ -82,10 +88,9 @@ def main():
             network.load_state_dict(convert_block(ckpt_dict['state_dict'], 'pdc'), strict=False)
             ckpt_dict['state_dict'] = convert_block(ckpt_dict['state_dict'], 'pdc')
 
-            convert_path = '/home/cfh/EDB/log_dir/convert_path/convert_pdc_weights.pth'
-
+            convert_path = os.path.join(args['export_dir'], 'convert_pdc_weights.pth')
             torch.save(ckpt_dict, convert_path)
-            print('save the converted weights ...')
+            print(f'Saved converted weights to: {convert_path}')
         else:
             print('Using original model and weights !')
             convert_path = torch.load(args['ckpt_path'])

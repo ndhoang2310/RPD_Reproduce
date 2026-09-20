@@ -1,0 +1,122 @@
+# ==============================================================================
+# Baseline B0 Configuration: RPD-Net on PhenoBench
+# Task: W1-T3 — Prepare B0 Training Experiment
+# Model: RPD-Net (Re-parameterized Pixel Difference Network)
+# Dataset: PhenoBench (Sugarbeet & Weed Semantic Segmentation)
+# Target Architecture: theta = 0.5 (4-branch PDC: cv, cd, ad, rd)
+# ==============================================================================
+
+seed: 1682409321
+# Published alternative seeds for statistical comparison:
+# seed: 3788966520
+# seed: 724297371
+# seed: 2745621
+# seed: 85181805
+
+experiment:
+  id: 'B0_RPDNet_PhenoBench'
+  description: 'Baseline B0 reproduction of RPD-Net on PhenoBench benchmark'
+
+data:
+  name: phenobench
+  # Dataset path (can be overridden via CLI: --dataset_dir /path/to/PhenoBench)
+  path_to_dataset: ./data/PhenoBench
+  num_workers: 8        # Tuned for School Server (108GB RAM, multi-core CPU)
+  image_normalizer:
+    name: single_image_normalizer
+
+backbone:
+  name: RPDNet          # Re-parameterized Pixel Difference Network
+  num_classes: 3        # 0: Background/Soil, 1: Crop (Sugarbeet), 2: Weed
+  pretrained: false     # Train from scratch (as specified in paper)
+  theta: 0.5            # Frozen theta value for B0/B1/P1 consistency
+  deploy: false         # Set to true only during inference post-reparameterization
+  convert: false
+
+train:
+  step_settings:
+    - regular
+  max_epoch: 4096       # Official published protocol (can be overridden via --max_epoch for W1-T4 profiling)
+  devices: 1            # 1x NVIDIA RTX 4090 (24GB VRAM)
+  benchmark: True
+  loss: xentropy
+  learning_rate: 5.0e-4 # Baseline codebase LR (paper text mentions 1e-4; documented in W1-T3 dlog)
+  weight_decay: 2.0e-04 # Adam weight decay
+  batch_size: 4         # Official published batch size (~3.5GB VRAM usage on RTX 4090)
+  shuffle: true
+  early_stopping_patience: 20 # Overridable via --early_stopping_patience or --no_early_stopping
+  vis_train_every_x_epochs: 4096
+  postprocess_train_every_x_epochs: 4096
+
+  # Inverse class frequency weights computed on PhenoBench official train split:
+  # Class 0 (Soil/Background): 1.47
+  # Class 1 (Crop / Sugarbeet): 5.06
+  # Class 2 (Weed): 10.02 (heavily penalized due to high pixel sparsity)
+  # Ignore index 255 (boundaries) is masked out and excluded from loss computation
+  class_weights:
+    - 1.47
+    - 5.06
+    - 10.02
+
+  # Official data augmentations:
+  color_data_augmentations:
+    random_global_brightness:
+      min_brightness_factor: 0.6
+      max_brightness_factor: 1.4
+    random_global_contrast:
+      min_contrast_factor: 0.6
+      max_contrast_factor: 1.4
+    random_global_saturation:
+      min_saturation_factor: 0.8
+      max_saturation_factor: 1.2
+    random_global_hue:
+      min_hue_factor: -0.0125
+      max_hue_factor: 0.0125
+
+  geometric_data_augmentations:
+    random_hflip: null  # p = 0.5
+    random_vflip: null  # p = 0.5
+    random_scale:
+      min_scale: 1.0
+      max_scale: 1.1
+    random_crop:
+      height: 768
+      width: 768
+
+val:
+  step_settings:
+    - regular
+  devices: 1
+  num_nodes: 1
+  batch_size: 4         # Batch size 4 for fast validation on RTX 4090
+  check_val_every_n_epoch: 10  # Published is 200; set to 10 for profiling (overridable via --check_val_every_n_epoch)
+  vis_val_every_x_epochs: 4096
+  postprocess_val_every_x_epochs: 4096
+  geometric_data_augmentations:
+    center_crop:
+      height: 1024
+      width: 1024
+
+test:
+  step_settings:
+    - regular
+  devices: 1
+  batch_size: 1
+  geometric_data_augmentations:
+    center_crop:
+      height: 1024
+      width: 1024
+
+visualizers:
+  input_image_visualizer: null
+  semantic_map_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+  semantic_overlay_correct_incorrect_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+  semantic_overlay_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+  ground_truth_visualizer:
+    classes_to_colors: {0: [0, 0, 0], 1: [0, 255, 0], 2: [255, 0, 0]}
+
+postprocessors:
+  arg_max_classes_postprocessor: null

@@ -22,7 +22,7 @@ train:
   devices: auto
   benchmark: True
   loss: xentropy
-  learning_rate: 5.0e-4
+  learning_rate: 1.0e-4 # Aligned with paper: 1e-4 with Adam
   weight_decay: 2.0e-04
   class_weights:
     - 1.47
@@ -30,6 +30,11 @@ train:
     - 10.02
   batch_size: 4
   shuffle: true
+  early_stopping:
+    mode: 'paper'
+    loss_threshold: 0.1
+    consecutive_count: 3
+    monitor: 'val_loss'
   vis_train_every_x_epochs: 4096
   postprocess_train_every_x_epochs: 4096
   color_data_augmentations:
@@ -60,7 +65,7 @@ val:
   devices: 1
   num_nodes: 1
   batch_size: 2
-  check_val_every_n_epoch: 150
+  check_val_every_n_epoch: 200
   vis_val_every_x_epochs: 600
   postprocess_val_every_x_epochs: 600
   geometric_data_augmentations:

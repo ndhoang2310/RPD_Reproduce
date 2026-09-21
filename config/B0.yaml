@@ -40,10 +40,17 @@ train:
   devices: 1            # 1x NVIDIA RTX 4090 (24GB VRAM)
   benchmark: True
   loss: xentropy
-  learning_rate: 5.0e-4 # Baseline codebase LR (paper text mentions 1e-4; documented in W1-T3 dlog)
+  learning_rate: 1.0e-4 # Aligned with IEEE TGRS 2026 paper: 1e-4 with Adam
   weight_decay: 2.0e-04 # Adam weight decay
   batch_size: 4         # Official published batch size (~3.5GB VRAM usage on RTX 4090)
   shuffle: true
+  
+  # Paper early stopping: stop after 3 consecutive validations with val_loss <= 0.1
+  early_stopping:
+    mode: 'paper'
+    loss_threshold: 0.1
+    consecutive_count: 3
+    monitor: 'val_loss'
   early_stopping_patience: 20 # Overridable via --early_stopping_patience or --no_early_stopping
   vis_train_every_x_epochs: 4096
   postprocess_train_every_x_epochs: 4096
@@ -89,7 +96,7 @@ val:
   devices: 1
   num_nodes: 1
   batch_size: 4         # Batch size 4 for fast validation on RTX 4090
-  check_val_every_n_epoch: 10  # Published is 200; set to 10 for profiling (overridable via --check_val_every_n_epoch)
+  check_val_every_n_epoch: 200  # Exactly aligned with IEEE TGRS 2026 paper (override with --check_val_every_n_epoch for short profiling)
   vis_val_every_x_epochs: 4096
   postprocess_val_every_x_epochs: 4096
   geometric_data_augmentations:

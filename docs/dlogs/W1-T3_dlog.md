@@ -75,12 +75,18 @@ Upon deep inspection of the original author repository (`RPD/`), multiple critic
 | Dimension | Paper Specification | Author Codebase (`config_deeplearn.yaml`) | Decision for B0 Baseline |
 |---|---|---|---|
 | **Theta ($\theta$)** | Default $\theta=1.0$; best reported $\theta=0.5$ | $\theta=0.5$ in architecture | **Frozen at $\theta = 0.5$** |
-| **Learning Rate** | 16-epoch warm-up to 1e-4, then poly decay $(1 - e/4096)^3$ | Base LR: 5e-4 with Adam optimizer | **Keep 5e-4** (align with official repo; document paper note) |
+| **Learning Rate** | 16-epoch warm-up to 1e-4, then poly decay $(1 - e/4096)^3$ | Base LR: 5e-4 with Adam optimizer | **Aligned strictly to paper: 1.0e-4** (CLI `--learning_rate` supported) |
 | **Class Weights** | Inversely proportional to pixel frequencies | Hardcoded `[1.47, 5.06, 10.02]` | **Frozen at `[1.47, 5.06, 10.02]`** |
-| **Validation Interval** | Every 200 epochs | `check_val_every_n_epoch: 150` | **Set to 10 for profiling**, 150/200 for full runs |
-| **Early Stopping** | 3 consecutive validations with val_loss $\le 0.1$ | PyTorch Lightning `EarlyStopping(monitor='val_loss', patience=3)` | **Supported via CLI** (can disable with `--no_early_stopping`) |
+| **Validation Interval** | Every 200 epochs | `check_val_every_n_epoch: 150` | **Aligned to paper: 200 epochs** (overridable to 10 for profiling) |
+| **Early Stopping** | 3 consecutive validations with val_loss $\le 0.1$ | PyTorch Lightning `EarlyStopping(monitor='val_loss', patience=3)` | **Aligned to paper: `PaperEarlyStopping`** (3 consecutive checks with val_loss $\le 0.1$) |
 | **Batch Size** | 4 (crop 768 $\times$ 768) | 4 | **Frozen at 4** |
 | **Optimizer** | Adam, weight decay 2e-4 | Adam, weight decay 2e-4 | **Frozen at Adam (2e-4)** |
+
+### 3.1 Strict Paper Realignment Update (Post-Audit Decision)
+Following the exact extraction and review of Section IV-A-3 ("Implementation Details") from the published paper (*IEEE TGRS 2026*), three critical hyperparameter discrepancies have been reconciled and implemented in both `configs/B0.yaml` and `RPD/multi_metric_train.py`:
+1. **Learning Rate**: Replaced the author's legacy `5.0e-4` with **`1.0e-4`** ($0.0001$), honoring the 16-epoch linear warmup followed by $(1 - e/4096)^3$ polynomial decay.
+2. **Validation Interval**: Set baseline config default to **`200 epochs`** (instead of 10 or 150). For short profiling sessions (W1-T4/W1-T5), users can still override via `--check_val_every_n_epoch 10` on the CLI without mutating the frozen baseline config.
+3. **Early Stopping Mechanism**: Implemented custom callback `PaperEarlyStopping(Callback)` in `multi_metric_train.py`. Unlike standard plateau-based EarlyStopping, it verifies the exact paper condition: stops after **3 consecutive validations with $\text{val\_loss} \le 0.1$**. Standard plateau early stopping is retained as an alternative mode (`--early_stopping_mode plateau`).
 
 ---
 

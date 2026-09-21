@@ -35,11 +35,16 @@ train:
   devices: 1            # 1 GPU (RTX 4090 24GB) hoặc auto
   benchmark: True
   loss: xentropy
-  learning_rate: 5.0e-4 # Learning rate chuẩn của bài báo: 0.0005 với Adam
+  learning_rate: 1.0e-4 # Learning rate chuẩn của bài báo: 0.0001 (1e-4) với Adam
   weight_decay: 2.0e-04 # Weight decay chuẩn: 0.0002
   batch_size: 4         # Batch size chuẩn của bài báo (an toàn tuyệt đối, tốn ~3.5GB VRAM trên 4090)
   shuffle: true
-  early_stopping_patience: 20 # Dừng nếu 20 lần validation liên tiếp không cải thiện (dùng --no_early_stopping để tắt)
+  early_stopping:
+    mode: 'paper'
+    loss_threshold: 0.1
+    consecutive_count: 3
+    monitor: 'val_loss'
+  early_stopping_patience: 20 # Fallback patience cho mode plateau
   vis_train_every_x_epochs: 4096
   postprocess_train_every_x_epochs: 4096
 
@@ -79,7 +84,7 @@ val:
   devices: 1
   num_nodes: 1
   batch_size: 4         # 4090 24GB thoải mái chạy val batch 4
-  check_val_every_n_epoch: 5  # Đánh giá validation mỗi 5 epoch
+  check_val_every_n_epoch: 200  # Đánh giá validation mỗi 200 epoch theo đúng paper
   vis_val_every_x_epochs: 600
   postprocess_val_every_x_epochs: 600
   geometric_data_augmentations:

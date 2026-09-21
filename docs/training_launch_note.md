@@ -25,7 +25,10 @@
   - `backbone.theta`: `0.5`
   - `backbone.pretrained`: `false` (train from scratch)
   - `train.batch_size`: `4`
+  - `train.learning_rate`: `1.0e-4` (chuẩn IEEE TGRS 2026 paper)
   - `train.max_epoch`: `4096` (paper protocol) / điều chỉnh qua cờ `--max_epoch` khi profiling ở W1-T4
+  - `val.check_val_every_n_epoch`: `200` (chuẩn paper: validate mỗi 200 epoch; override `--check_val_every_n_epoch 10` khi profiling)
+  - `early_stopping`: `PaperEarlyStopping` (dừng sau 3 lần val liên tiếp có $\text{val\_loss} \le 0.1$)
   - `data.num_workers`: `8` (tận dụng 108GB RAM server)
   - `seed`: `1682409321`
 
@@ -53,13 +56,14 @@
   - Masking: Điểm ảnh có nhãn `255` (ignore/boundary) được loại bỏ khỏi loss (`anno != 255`).
 - **Optimizer**: Adam với `weight_decay = 2.0e-4`.
 - **Learning Rate Schedule**:
-  - Base LR: `5.0e-4` (khớp với repo gốc; paper text ghi 1e-4).
-  - Warm-up: 16 epoch đầu tăng tuyến tính từ 0 đến base LR.
+  - Base LR: `1.0e-4` (khớp hoàn toàn với Section IV-A-3 của bài báo).
+  - Warm-up: 16 epoch đầu tăng tuyến tính từ 0 đến base LR ($1 \times 10^{-4}$).
   - Sau warm-up: Polynomial decay theo công thức $(1 - \frac{e - 17}{4096 - 17})^3$.
 - **Augmentation**:
   - Brightness: $[0.6, 1.4]$, Contrast: $[0.6, 1.4]$, Saturation: $[0.8, 1.2]$, Hue: $[-0.0125, 0.0125]$.
   - HFlip: $p=0.5$, VFlip: $p=0.5$, Scale: $[1.0, 1.1]$, Crop: $768 \times 768$.
-- **Checkpoint Rule**:
+- **Checkpoint & Early Stopping Rule**:
+  - **Early Stopping**: `PaperEarlyStopping` dừng sau **3 lần validation liên tiếp có $\text{val\_loss} \le 0.1$** (tương đương $\ge 600$ epoch).
   - Lưu checkpoint tốt nhất theo **Validation mIoU cao nhất** (`val_mIoU` max).
   - Lưu checkpoint tốt nhất theo **Validation Loss thấp nhất** (`val_loss` min).
   - Tự động duy trì `last.ckpt` để sẵn sàng resume.
@@ -67,9 +71,9 @@
 ### 5. Lệnh hoặc entry point nào dùng để bắt đầu training?
 - **Script bao bọc (khuyên dùng)**:
   ```bash
-  bash run_train.sh --dataset_dir /path/to/PhenoBench --max_epoch 4096 --check_val_every_n_epoch 10
+  bash run_train.sh --dataset_dir /path/to/PhenoBench --max_epoch 4096
   ```
-- **Lệnh Python trực tiếp**:
+- **Lệnh Python trực tiếp (chuẩn Paper)**:
   ```bash
   python multi_metric_train.py \
     --config configs/B0.yaml \
@@ -77,7 +81,17 @@
     --export_dir results \
     --devices 1 \
     --batch_size 4 \
-    --max_epoch 4096 \
+    --max_epoch 4096
+  ```
+- **Lệnh Python khi chạy Profiling nhanh (W1-T4 / W1-T5)**:
+  ```bash
+  python multi_metric_train.py \
+    --config configs/B0.yaml \
+    --dataset_dir /path/to/PhenoBench \
+    --export_dir results \
+    --devices 1 \
+    --batch_size 4 \
+    --max_epoch 50 \
     --check_val_every_n_epoch 10
   ```
 

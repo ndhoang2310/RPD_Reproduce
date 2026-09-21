@@ -27,13 +27,54 @@ with warnings.catch_warnings():
 import yaml
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping, Callback
 
 from callbacks import (ConfigCallback, PostprocessorCallback, VisualizerCallback, get_postprocessors, get_visualizers)
 from datasets import get_data_module
 from models import get_backbone, get_criterion, model_multimetrics
 
 import torch
+
+
+class PaperEarlyStopping(Callback):
+    """
+    Early stopping mechanism exactly as defined in the IEEE TGRS 2026 Paper:
+    "an early stopping mechanism after three consecutive validations with a loss <= 0.1, validating every 200 epochs."
+    """
+    def __init__(self, loss_threshold: float = 0.1, consecutive_count: int = 3, monitor: str = 'val_loss', verbose: bool = True):
+        super().__init__()
+        self.loss_threshold = loss_threshold
+        self.consecutive_count = consecutive_count
+        self.monitor = monitor
+        self.verbose = verbose
+        self.current_consecutive = 0
+
+    def on_validation_end(self, trainer: "Trainer", pl_module: "model_multimetrics.SegmentationNetwork") -> None:
+        if getattr(trainer, 'sanity_checking', False):
+            return
+
+        logs = trainer.callback_metrics
+        current_loss = logs.get(self.monitor)
+        if current_loss is None:
+            return
+
+        current_loss_val = float(current_loss.item() if hasattr(current_loss, 'item') else current_loss)
+        if current_loss_val <= self.loss_threshold:
+            self.current_consecutive += 1
+            if self.verbose:
+                print(f"\n[Paper EarlyStopping] {self.monitor} = {current_loss_val:.4f} <= {self.loss_threshold} "
+                      f"({self.current_consecutive}/{self.consecutive_count} consecutive validations)")
+            if self.current_consecutive >= self.consecutive_count:
+                if self.verbose:
+                    print(f"\n[Paper EarlyStopping] TRIGGERED! {self.consecutive_count} consecutive validations "
+                          f"with {self.monitor} <= {self.loss_threshold}. Stopping training at epoch {trainer.current_epoch}.")
+                trainer.should_stop = True
+        else:
+            if self.current_consecutive > 0 and self.verbose:
+                print(f"\n[Paper EarlyStopping] {self.monitor} = {current_loss_val:.4f} > {self.loss_threshold}. "
+                      f"Resetting consecutive counter from {self.current_consecutive} to 0.")
+            self.current_consecutive = 0
+
 
 def parse_args() -> Dict[str, Any]:
     parser = argparse.ArgumentParser(description='Train RPD Semantic Segmentation Model')
@@ -54,10 +95,18 @@ def parse_args() -> Dict[str, Any]:
                         help='Override GPU devices (e.g. 1, "0,", "auto")')
     parser.add_argument('--num_workers', default=None, type=int,
                         help='Override DataLoader num_workers (e.g. 8 for high-RAM server)')
+    parser.add_argument('--learning_rate', default=None, type=float,
+                        help='Override learning rate (default: from config, paper is 1e-4)')
     parser.add_argument('--check_val_every_n_epoch', default=None, type=int,
-                        help='Override validation frequency')
+                        help='Override validation frequency (paper protocol is 200)')
+    parser.add_argument('--early_stopping_mode', default=None, choices=['paper', 'plateau', 'none'],
+                        help="Early stopping mode: 'paper' (loss <= 0.1 for 3 consecutive checks), 'plateau' (patience without improvement), 'none'")
+    parser.add_argument('--early_stopping_threshold', default=None, type=float,
+                        help='Loss threshold for paper early stopping (default: 0.1)')
+    parser.add_argument('--early_stopping_consecutive', default=None, type=int,
+                        help='Consecutive validation count for paper early stopping (default: 3)')
     parser.add_argument('--early_stopping_patience', default=None, type=int,
-                        help='Patience for EarlyStopping (set 0 or negative to disable EarlyStopping)')
+                        help='Patience for plateau EarlyStopping (set 0 or negative to disable EarlyStopping)')
     parser.add_argument('--no_early_stopping', default=False, action='store_true',
                         help='Completely disable EarlyStopping to train for full epochs')
 
@@ -120,6 +169,10 @@ def main():
     if args['check_val_every_n_epoch'] is not None:
         cfg['val']['check_val_every_n_epoch'] = args['check_val_every_n_epoch']
         print(f"[Config Override] check_val_every_n_epoch -> {args['check_val_every_n_epoch']}")
+
+    if args.get('learning_rate') is not None:
+        cfg['train']['learning_rate'] = args['learning_rate']
+        print(f"[Config Override] learning_rate -> {args['learning_rate']}")
     
     if cfg.get('seed') is None:
         seed_val = int(time.time())
@@ -235,6 +288,9 @@ def main():
     postprocessor_callback = PostprocessorCallback(get_postprocessors(cfg),
                                                    cfg['train']['postprocess_train_every_x_epochs'],
                                                    cfg['val']['postprocess_val_every_x_epochs'])
+
+    config_callback = ConfigCallback(cfg)
+
     all_callbacks = [
         *my_checkpoint_savers,
         lr_monitor,
@@ -243,23 +299,39 @@ def main():
         config_callback,
     ]
 
-    # Cấu hình EarlyStopping linh hoạt
+    # Cấu hình EarlyStopping linh hoạt (Mặc định: PaperEarlyStopping theo chuẩn bài báo IEEE TGRS 2026: 3 lần val liên tiếp có val_loss <= 0.1)
     use_early_stopping = not args['no_early_stopping']
-    patience = args['early_stopping_patience']
-    if patience is not None and patience <= 0:
+    es_cfg = cfg['train'].get('early_stopping', {})
+    if isinstance(es_cfg, bool):
+        es_cfg = {'mode': 'paper' if es_cfg else 'none'}
+
+    es_mode = args.get('early_stopping_mode') or es_cfg.get('mode', 'paper')
+    if args['no_early_stopping'] or es_mode == 'none':
         use_early_stopping = False
 
     if use_early_stopping:
-        actual_patience = patience if patience is not None else cfg['train'].get('early_stopping_patience', 10)
-        early_stopping = EarlyStopping(
-            monitor='val_loss',
-            patience=actual_patience,
-            min_delta=0.001,
-            mode='min',
-            verbose=True
-        )
-        all_callbacks.append(early_stopping)
-        print(f"[EarlyStopping] Kích hoạt với patience = {actual_patience}")
+        if es_mode == 'paper':
+            threshold = args.get('early_stopping_threshold') if args.get('early_stopping_threshold') is not None else es_cfg.get('loss_threshold', 0.1)
+            consecutive = args.get('early_stopping_consecutive') if args.get('early_stopping_consecutive') is not None else es_cfg.get('consecutive_count', 3)
+            paper_es = PaperEarlyStopping(
+                loss_threshold=threshold,
+                consecutive_count=consecutive,
+                monitor='val_loss',
+                verbose=True
+            )
+            all_callbacks.append(paper_es)
+            print(f"[EarlyStopping] Kích hoạt chuẩn Paper (IEEE TGRS): {consecutive} lần val liên tiếp có val_loss <= {threshold}")
+        elif es_mode == 'plateau':
+            patience = args.get('early_stopping_patience') if args.get('early_stopping_patience') is not None else es_cfg.get('patience', 20)
+            early_stopping = EarlyStopping(
+                monitor='val_loss',
+                patience=patience,
+                min_delta=0.001,
+                mode='min',
+                verbose=True
+            )
+            all_callbacks.append(early_stopping)
+            print(f"[EarlyStopping] Kích hoạt Plateau EarlyStopping với patience = {patience}")
     else:
         print("[EarlyStopping] Đã tắt, mô hình sẽ huấn luyện đủ max_epoch theo cấu hình paper.")
 

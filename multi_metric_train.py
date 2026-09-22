@@ -274,7 +274,8 @@ def main():
         dirpath=ckpt_dir,
         save_top_k=0,
         save_last=True,
-        every_n_epochs=1
+        every_n_epochs=1,
+        save_on_train_epoch_end=True
     )
     # Periodic checkpoint every 10 epochs
     checkpoint_saver_periodic = ModelCheckpoint(
@@ -282,7 +283,8 @@ def main():
         filename=cfg['experiment']['id'] + '_periodic_epoch{epoch:04d}',
         every_n_epochs=10,
         save_top_k=-1,
-        save_last=False
+        save_last=False,
+        save_on_train_epoch_end=True
     )
 
     checkpoint_saver_val_loss = ModelCheckpoint(
@@ -302,7 +304,8 @@ def main():
         monitor='train_loss',
         filename=cfg['experiment']['id'] + '_{epoch:02d}_{train_loss:.4f}',
         mode='min',
-        save_last=False)
+        save_last=False,
+        save_on_train_epoch_end=True)
     checkpoint_saver_train_mIoU = ModelCheckpoint(
         dirpath=ckpt_dir,
         monitor='train_mIoU',

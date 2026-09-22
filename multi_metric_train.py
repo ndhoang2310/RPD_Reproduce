@@ -75,6 +75,12 @@ class PaperEarlyStopping(Callback):
                       f"Resetting consecutive counter from {self.current_consecutive} to 0.")
             self.current_consecutive = 0
 
+    def state_dict(self) -> Dict[str, Any]:
+        return {'current_consecutive': self.current_consecutive}
+
+    def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+        self.current_consecutive = state_dict.get('current_consecutive', 0)
+
 
 def parse_args() -> Dict[str, Any]:
     parser = argparse.ArgumentParser(description='Train RPD Semantic Segmentation Model')

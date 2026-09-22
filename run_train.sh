@@ -67,6 +67,13 @@ else
 fi
 
 mkdir -p "${EXPORT_DIR}/logs"
+TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
+LOG_FILE="${EXPORT_DIR}/logs/train_${TIMESTAMP}.log"
+LATEST_LOG="${EXPORT_DIR}/logs/training.log"
+
+echo " -> Training logs will be recorded at: ${LOG_FILE}"
+
+export RUNNER_CAPTURING_LOG=1
 
 # Execute training
 python multi_metric_train.py \
@@ -74,7 +81,11 @@ python multi_metric_train.py \
     --export_dir "${EXPORT_DIR}" \
     --dataset_dir "${DATASET_DIR}" \
     ${RESUME_ARG} \
-    ${EXTRA_ARGS}
+    ${EXTRA_ARGS} 2>&1 | tee "${LOG_FILE}"
+
+# Update training.log symlink / copy for quick tailing
+cp -f "${LOG_FILE}" "${LATEST_LOG}" 2>/dev/null || true
 
 echo -e "\n[DONE] Training session finished!"
+echo " -> Complete log saved to: ${LOG_FILE}"
 echo "Check summary with: python summarize_results.py ${EXPORT_DIR}"

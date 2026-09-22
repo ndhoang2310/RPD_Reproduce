@@ -1,6 +1,7 @@
 """Train semantic segmentation model."""
 
 import argparse
+import sys
 from calendar import c
 import os
 import time
@@ -82,6 +83,35 @@ class PaperEarlyStopping(Callback):
         self.current_consecutive = state_dict.get('current_consecutive', 0)
 
 
+class TeeStream:
+    """Duplicate stdout/stderr to a log file while keeping terminal output active."""
+    def __init__(self, original_stream, log_file):
+        self.original_stream = original_stream
+        self.log_file = log_file
+
+    def write(self, data):
+        self.original_stream.write(data)
+        self.original_stream.flush()
+        try:
+            self.log_file.write(data)
+            self.log_file.flush()
+        except Exception:
+            pass
+
+    def flush(self):
+        self.original_stream.flush()
+        try:
+            self.log_file.flush()
+        except Exception:
+            pass
+
+    def isatty(self):
+        return getattr(self.original_stream, 'isatty', lambda: False)()
+
+    def fileno(self):
+        return self.original_stream.fileno()
+
+
 def parse_args() -> Dict[str, Any]:
     parser = argparse.ArgumentParser(description='Train RPD Semantic Segmentation Model')
     parser.add_argument('--export_dir', default='log_dir/', help='Path to export dir which saves logs, metrics, etc.')
@@ -150,6 +180,26 @@ def load_config(path_to_config_file: str) -> Dict:
 
 def main():
     args = parse_args()
+
+    # Setup automated file logging if not already captured by outer runner script
+    if not os.environ.get("RUNNER_CAPTURING_LOG"):
+        logs_dir = os.path.join(args['export_dir'], 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        timestamp_str = time.strftime('%Y%m%d_%H%M%S')
+        log_file_path = os.path.join(logs_dir, f"train_{timestamp_str}.log")
+        latest_log_path = os.path.join(logs_dir, "training.log")
+        try:
+            log_fh = open(log_file_path, "a", encoding="utf-8")
+            sys.stdout = TeeStream(sys.stdout, log_fh)
+            sys.stderr = TeeStream(sys.stderr, log_fh)
+            print(f"[Logging] Phiên huấn luyện tự động ghi log tại: {log_file_path}")
+            try:
+                import shutil
+                shutil.copyfile(log_file_path, latest_log_path)
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[Logging Warning] Không thể mở file log {log_file_path}: {e}")
 
     cfg = load_config(args['config'])
 

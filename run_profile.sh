@@ -88,6 +88,16 @@ python multi_metric_train.py \
     --profile \
     ${EXTRA_ARGS} 2>&1 | tee "${LOG_FILE}"
 
+TRAIN_EXIT=${PIPESTATUS[0]}
+
+if [ $TRAIN_EXIT -ne 0 ]; then
+    echo -e "\n================================================================="
+    echo " [ERROR] Profiling run failed with exit code $TRAIN_EXIT!"
+    echo " -> Check the log file for tracebacks: ${LOG_FILE}"
+    echo "================================================================="
+    exit $TRAIN_EXIT
+fi
+
 echo -e "\n================================================================="
 echo " [DONE] Profiling run completed successfully!"
 echo " -> Profiling Summary JSON: ${EXPORT_DIR}/profiling_summary.json"

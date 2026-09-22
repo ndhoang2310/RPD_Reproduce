@@ -129,6 +129,18 @@ class SegmentationNetwork(pl.LightningModule):
         self.validation_step_outputs = []
         self.test_step_outputs = []
 
+    def _log_scalars(self, tag: str, val_dict: dict, step: int) -> None:
+        if hasattr(self, 'logger') and self.logger is not None:
+            exp = getattr(self.logger, 'experiment', None)
+            if exp is not None and hasattr(exp, 'add_scalars'):
+                exp.add_scalars(tag, val_dict, step)
+            elif hasattr(self.logger, 'log_metrics'):
+                metrics = {}
+                for k, v in val_dict.items():
+                    val = v.item() if hasattr(v, 'item') else float(v)
+                    metrics[f"{tag}/{k}"] = val
+                self.logger.log_metrics(metrics, step=step)
+
     def compute_loss(self, logits: torch.Tensor, y: torch.Tensor, mode: str,
                      mask_keep: Optional[torch.Tensor] = None) -> torch.Tensor:
         """ Compute cross entropy loss based on logits and ground-truths.
@@ -204,7 +216,7 @@ class SegmentationNetwork(pl.LightningModule):
             if key.startswith('loss'):
                 loss_accumulated = torch.stack([x[key] for x in self.training_step_outputs])
                 loss_avg = loss_accumulated.mean().detach()
-                self.logger.experiment.add_scalars(f'{key}', {'train': loss_avg}, epoch)
+                self._log_scalars(f'{key}', {'train': loss_avg}, epoch)
 
         # the following logging is required *ModelCheckpoint* to work as expected
         losses = torch.stack([x['loss'] for x in self.training_step_outputs])
@@ -233,20 +245,20 @@ class SegmentationNetwork(pl.LightningModule):
         self.metric_train_recall.reset()
 
         for class_index, iou_class in enumerate(iou_per_class):
-            self.logger.experiment.add_scalars(f'iou_class_{class_index}', {'train': iou_class}, epoch)
-            self.logger.experiment.add_scalars(f'precision_class_{class_index}',
+            self._log_scalars(f'iou_class_{class_index}', {'train': iou_class}, epoch)
+            self._log_scalars(f'precision_class_{class_index}',
                                                {'train': precision_per_class[class_index]}, epoch)
-            self.logger.experiment.add_scalars(f'f1_class_{class_index}', {'train': f1_per_class[class_index]}, epoch)
-            self.logger.experiment.add_scalars(f'acc_class_{class_index}', {'train': acc_per_class[class_index]}, epoch)
-            self.logger.experiment.add_scalars(f'recall_class_{class_index}', {'train': recall_per_class[class_index]},
+            self._log_scalars(f'f1_class_{class_index}', {'train': f1_per_class[class_index]}, epoch)
+            self._log_scalars(f'acc_class_{class_index}', {'train': acc_per_class[class_index]}, epoch)
+            self._log_scalars(f'recall_class_{class_index}', {'train': recall_per_class[class_index]},
                                                epoch)
 
-        self.logger.experiment.add_scalars('mIoU', {'train': mIoU}, epoch)
-        self.logger.experiment.add_scalars('mPrecision', {'train': mPrecision}, epoch)
-        self.logger.experiment.add_scalars('mF1', {'train': mF1}, epoch)
-        self.logger.experiment.add_scalars('mAcc', {'train': mAcc}, epoch)
-        self.logger.experiment.add_scalars('OverallAcc', {'train': acc_micro}, epoch)
-        self.logger.experiment.add_scalars('mRecall', {'train': mRecall}, epoch)
+        self._log_scalars('mIoU', {'train': mIoU}, epoch)
+        self._log_scalars('mPrecision', {'train': mPrecision}, epoch)
+        self._log_scalars('mF1', {'train': mF1}, epoch)
+        self._log_scalars('mAcc', {'train': mAcc}, epoch)
+        self._log_scalars('OverallAcc', {'train': acc_micro}, epoch)
+        self._log_scalars('mRecall', {'train': mRecall}, epoch)
 
         self.log('train_mIoU', mIoU, on_epoch=True, sync_dist=True)
         self.log('train_mPrecision', mPrecision, on_epoch=True, sync_dist=True)
@@ -291,7 +303,7 @@ class SegmentationNetwork(pl.LightningModule):
 
         # logging
         epoch = self.trainer.current_epoch
-        self.logger.experiment.add_scalars('loss', {'val': val_loss_avg}, epoch)
+        self._log_scalars('loss', {'val': val_loss_avg}, epoch)
         self.log('val_loss', val_loss_avg, on_epoch=True, sync_dist=True)
 
         # compute final metrics over all batches
@@ -316,20 +328,20 @@ class SegmentationNetwork(pl.LightningModule):
         self.metric_val_recall.reset()
 
         for class_index, iou_class in enumerate(iou_per_class):
-            self.logger.experiment.add_scalars(f'iou_class_{class_index}', {'val': iou_class}, epoch)
-            self.logger.experiment.add_scalars(f'precision_class_{class_index}',
+            self._log_scalars(f'iou_class_{class_index}', {'val': iou_class}, epoch)
+            self._log_scalars(f'precision_class_{class_index}',
                                                {'val': precision_per_class[class_index]}, epoch)
-            self.logger.experiment.add_scalars(f'f1_class_{class_index}', {'val': f1_per_class[class_index]}, epoch)
-            self.logger.experiment.add_scalars(f'acc_class_{class_index}', {'val': acc_per_class[class_index]}, epoch)
-            self.logger.experiment.add_scalars(f'recall_class_{class_index}', {'val': recall_per_class[class_index]},
+            self._log_scalars(f'f1_class_{class_index}', {'val': f1_per_class[class_index]}, epoch)
+            self._log_scalars(f'acc_class_{class_index}', {'val': acc_per_class[class_index]}, epoch)
+            self._log_scalars(f'recall_class_{class_index}', {'val': recall_per_class[class_index]},
                                                epoch)
 
-        self.logger.experiment.add_scalars('mIoU', {'val': mIoU}, epoch)
-        self.logger.experiment.add_scalars('mPrecision', {'val': mPrecision}, epoch)
-        self.logger.experiment.add_scalars('mF1', {'val': mF1}, epoch)
-        self.logger.experiment.add_scalars('mAcc', {'val': mAcc}, epoch)
-        self.logger.experiment.add_scalars('OverallAcc', {'val': acc_micro}, epoch)
-        self.logger.experiment.add_scalars('mRecall', {'val': mRecall}, epoch)
+        self._log_scalars('mIoU', {'val': mIoU}, epoch)
+        self._log_scalars('mPrecision', {'val': mPrecision}, epoch)
+        self._log_scalars('mF1', {'val': mF1}, epoch)
+        self._log_scalars('mAcc', {'val': mAcc}, epoch)
+        self._log_scalars('OverallAcc', {'val': acc_micro}, epoch)
+        self._log_scalars('mRecall', {'val': mRecall}, epoch)
 
         self.log('val_mIoU', mIoU, on_epoch=True, sync_dist=True)
         self.log('val_mPrecision', mPrecision, on_epoch=True, sync_dist=True)

@@ -417,6 +417,16 @@ def main():
         from pytorch_lightning.strategies import DDPStrategy
         train_strategy = DDPStrategy(find_unused_parameters=False)
 
+    # Setup logger
+    try:
+        tb_logger = TensorBoardLogger(
+            save_dir=args['export_dir'],
+            name="lightning_logs",
+            default_hp_metric=False
+        )
+    except Exception:
+        tb_logger = True
+
     # Setup trainer
     trainer = Trainer(
         accelerator=cfg['train'].get('accelerator', 'auto'),
@@ -426,7 +436,8 @@ def main():
         default_root_dir=args['export_dir'],
         max_epochs=cfg['train']['max_epoch'],
         check_val_every_n_epoch=cfg['val']['check_val_every_n_epoch'],
-        callbacks=all_callbacks)
+        callbacks=all_callbacks,
+        logger=tb_logger)
 
     if args['ckpt_path'] is None:
         print('Train from scratch.')

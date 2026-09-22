@@ -83,8 +83,16 @@ python multi_metric_train.py \
     ${RESUME_ARG} \
     ${EXTRA_ARGS} 2>&1 | tee "${LOG_FILE}"
 
+TRAIN_EXIT=${PIPESTATUS[0]}
+
 # Update training.log symlink / copy for quick tailing
 cp -f "${LOG_FILE}" "${LATEST_LOG}" 2>/dev/null || true
+
+if [ $TRAIN_EXIT -ne 0 ]; then
+    echo -e "\n[ERROR] Training session failed with exit code $TRAIN_EXIT!"
+    echo " -> Check log for details: ${LOG_FILE}"
+    exit $TRAIN_EXIT
+fi
 
 echo -e "\n[DONE] Training session finished!"
 echo " -> Complete log saved to: ${LOG_FILE}"

@@ -272,16 +272,16 @@ def main():
     # Guaranteed persistent last.ckpt saved on EVERY epoch end for pause/resume tolerance
     checkpoint_saver_epoch_last = ModelCheckpoint(
         dirpath=ckpt_dir,
-        filename='last',
-        every_n_epochs=1,
-        save_last=True
+        save_top_k=0,
+        save_last=True,
+        every_n_epochs=1
     )
-    # Periodic checkpoint every 10 epochs (keeps top 5 most recent)
+    # Periodic checkpoint every 10 epochs
     checkpoint_saver_periodic = ModelCheckpoint(
         dirpath=ckpt_dir,
         filename=cfg['experiment']['id'] + '_periodic_epoch{epoch:04d}',
         every_n_epochs=10,
-        save_top_k=5,
+        save_top_k=-1,
         save_last=False
     )
 

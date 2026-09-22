@@ -55,9 +55,9 @@ if [ ! -d "${DATASET_DIR}/train/images" ]; then
     fi
 fi
 
-# Automatic checkpoint resume detection
+# Automatic checkpoint resume detection (scoped specifically to training checkpoints directory)
 RESUME_ARG=""
-LAST_CKPT=$(find "${EXPORT_DIR}" -name "last.ckpt" 2>/dev/null | sort | tail -n 1 || true)
+LAST_CKPT=$(find "${EXPORT_DIR}/checkpoints" -name "last.ckpt" 2>/dev/null | sort | tail -n 1 || true)
 if [ -n "${LAST_CKPT}" ] && [ -f "${LAST_CKPT}" ]; then
     echo " -> Found existing checkpoint: ${LAST_CKPT}"
     echo " -> Automatically RESUMING training session!"

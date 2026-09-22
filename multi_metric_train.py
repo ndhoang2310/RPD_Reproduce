@@ -399,8 +399,8 @@ def main():
     if args.get('profile', False):
         profiling_cb = ComputeProfilingCallback(
             warmup_batches=args.get('profile_warmup_batches', 10),
-            target_max_epochs=cfg['train'].get('max_epoch', 4096),
-            val_interval=cfg['val'].get('check_val_every_n_epoch', 200),
+            target_max_epochs=4096,
+            val_interval=200,
             output_dir=args['export_dir'],
             verbose=True
         )

@@ -100,7 +100,7 @@
   - Checkpoints: `results/checkpoints/` (`*.ckpt`, bao gồm `last.ckpt`).
   - Metrics per-class: `results/evaluation/epoch-XXXXXX/` (`IoU.yaml`, `F1.yaml`, `Precision.yaml`, `Recall.yaml`).
   - Lightning logs & TensorBoard: `results/lightning_logs/`.
-  - Console text log: `results/logs/training.log`.
+  - Console text log: Tự động lưu theo timestamp `results/logs/train_YYYYMMDD_HHMMSS.log` cho mỗi lần chạy, kèm bản sao cập nhật `results/logs/training.log`.
 
 ### 7. Nếu server session kết thúc thì checkpoint/log có còn không?
 - **Có**: Thư mục `results/` nằm trong ổ cứng persistent storage của user trên server, không bị xóa khi tắt terminal.

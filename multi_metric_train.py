@@ -264,23 +264,47 @@ def main():
                                                             val_step_settings=cfg['val']['step_settings'])
 
     # Add callbacks
+    ckpt_dir = os.path.join(args['export_dir'], 'checkpoints')
+    os.makedirs(ckpt_dir, exist_ok=True)
+
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
+
+    # Guaranteed persistent last.ckpt saved on EVERY epoch end for pause/resume tolerance
+    checkpoint_saver_epoch_last = ModelCheckpoint(
+        dirpath=ckpt_dir,
+        filename='last',
+        every_n_epochs=1,
+        save_last=True
+    )
+    # Periodic checkpoint every 10 epochs (keeps top 5 most recent)
+    checkpoint_saver_periodic = ModelCheckpoint(
+        dirpath=ckpt_dir,
+        filename=cfg['experiment']['id'] + '_periodic_epoch{epoch:04d}',
+        every_n_epochs=10,
+        save_top_k=5,
+        save_last=False
+    )
+
     checkpoint_saver_val_loss = ModelCheckpoint(
+        dirpath=ckpt_dir,
         monitor='val_loss',
         filename=cfg['experiment']['id'] + '_{epoch:02d}_{val_loss:.4f}',
         mode='min',
-        save_last=True)
+        save_last=False)
     checkpoint_saver_val_mIoU = ModelCheckpoint(
+        dirpath=ckpt_dir,
         monitor='val_mIoU',
         filename=cfg['experiment']['id'] + '_{epoch:02d}_{val_mIoU:.4f}',
         mode='max',
         save_last=False)
     checkpoint_saver_train_loss = ModelCheckpoint(
+        dirpath=ckpt_dir,
         monitor='train_loss',
         filename=cfg['experiment']['id'] + '_{epoch:02d}_{train_loss:.4f}',
         mode='min',
         save_last=False)
     checkpoint_saver_train_mIoU = ModelCheckpoint(
+        dirpath=ckpt_dir,
         monitor='train_mIoU',
         filename=cfg['experiment']['id'] + '_{epoch:02d}_{train_mIoU:.4f}',
         mode='max',

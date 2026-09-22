@@ -1,0 +1,48 @@
+{
+  "hardware": {
+    "gpu_name": "NVIDIA GeForce RTX 4090",
+    "gpu_count": 1,
+    "total_vram_gib": 23.51,
+    "cuda_version": "12.1",
+    "pytorch_version": "2.5.1+cu121"
+  },
+  "training_config": {
+    "batch_size": 4,
+    "warmup_batches_excluded": 10,
+    "measured_steady_batches": 3500,
+    "measured_steady_epochs": 10,
+    "target_max_epochs": 4096,
+    "val_interval_epochs": 200
+  },
+  "observed_vram": {
+    "peak_allocated_gib": 12.196,
+    "peak_reserved_gib": 12.697,
+    "vram_utilization_pct": 51.9,
+    "oom_occurred": false,
+    "recommended_min_vram_gib": 14.64
+  },
+  "observed_speed": {
+    "mean_sec_per_iteration": 0.2898,
+    "mean_sec_per_epoch": 125.33,
+    "min_sec_per_epoch": 121.45,
+    "max_sec_per_epoch": 156.48,
+    "epochs_per_hour": 28.72,
+    "samples_per_second": 13.8
+  },
+  "observed_overhead": {
+    "validation_pass_sec": 34.3,
+    "scheduled_val_events_4096": 20,
+    "total_val_overhead_hours": 0.19
+  },
+  "estimations": {
+    "pure_train_hours_4096": 142.6,
+    "val_overhead_hours_4096": 0.19,
+    "safety_buffer_15pct_hours": 21.42,
+    "full_b0_estimated_hours": 164.21,
+    "estimated_gpu_hours_1gpu": 164.21,
+    "estimated_hours_per_200_epochs": 8.02,
+    "projected_b1_gpu_hours": 164.21,
+    "projected_p1_gpu_hours": 172.42,
+    "total_project_learning_gpu_hours": 582.94
+  }
+}

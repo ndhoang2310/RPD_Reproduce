@@ -55,6 +55,13 @@ if [ ! -d "${DATASET_DIR}/train/images" ]; then
     fi
 fi
 
+# Clean flag check: if user passes --clean, wipe previous training checkpoints
+if [[ "$*" == *"--clean"* ]]; then
+    echo " -> --clean specified: Removing existing checkpoints to start fresh from scratch."
+    rm -rf "${EXPORT_DIR}/checkpoints"
+    EXTRA_ARGS=$(echo "${EXTRA_ARGS}" | sed 's/--clean//g')
+fi
+
 # Automatic checkpoint resume detection (scoped specifically to training checkpoints directory)
 RESUME_ARG=""
 LAST_CKPT=$(find "${EXPORT_DIR}/checkpoints" -name "last.ckpt" 2>/dev/null | sort | tail -n 1 || true)

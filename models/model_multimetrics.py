@@ -208,6 +208,8 @@ class SegmentationNetwork(pl.LightningModule):
         return {'loss': loss}
 
     def on_train_epoch_end(self) -> None:
+        if not self.training_step_outputs:
+            return
         epoch = self.trainer.current_epoch
 
         # compute loss(es) over all batches and log
@@ -297,6 +299,8 @@ class SegmentationNetwork(pl.LightningModule):
         return validation_out
 
     def on_validation_epoch_end(self) -> None:
+        if not self.validation_step_outputs:
+            return
         # compute loss over all batches
         losses = torch.stack([x['loss'] for x in self.validation_step_outputs])
         val_loss_avg = losses.mean()

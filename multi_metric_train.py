@@ -29,7 +29,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping, Callback
 
-from callbacks import (ConfigCallback, PostprocessorCallback, VisualizerCallback, get_postprocessors, get_visualizers)
+from callbacks import (ConfigCallback, PostprocessorCallback, VisualizerCallback, get_postprocessors, get_visualizers, ComputeProfilingCallback)
 from datasets import get_data_module
 from models import get_backbone, get_criterion, model_multimetrics
 
@@ -109,6 +109,10 @@ def parse_args() -> Dict[str, Any]:
                         help='Patience for plateau EarlyStopping (set 0 or negative to disable EarlyStopping)')
     parser.add_argument('--no_early_stopping', default=False, action='store_true',
                         help='Completely disable EarlyStopping to train for full epochs')
+    parser.add_argument('--profile', default=False, action='store_true',
+                        help='Enable automated B0 compute profiling callback (measures VRAM, steady speed, overhead, and runtime estimates)')
+    parser.add_argument('--profile_warmup_batches', default=10, type=int,
+                        help='Number of initial batches to exclude as warm-up from steady-state profiling (default: 10)')
 
     args = vars(parser.parse_args())
     return args
@@ -334,6 +338,18 @@ def main():
             print(f"[EarlyStopping] Kích hoạt Plateau EarlyStopping với patience = {patience}")
     else:
         print("[EarlyStopping] Đã tắt, mô hình sẽ huấn luyện đủ max_epoch theo cấu hình paper.")
+ 
+    # Automated Compute Profiling Callback for Task W1-T4 / W1-T5
+    if args.get('profile', False):
+        profiling_cb = ComputeProfilingCallback(
+            warmup_batches=args.get('profile_warmup_batches', 10),
+            target_max_epochs=cfg['train'].get('max_epoch', 4096),
+            val_interval=cfg['val'].get('check_val_every_n_epoch', 200),
+            output_dir=args['export_dir'],
+            verbose=True
+        )
+        all_callbacks.append(profiling_cb)
+        print("[Profiling] ComputeProfilingCallback kích hoạt cho W1-T5 Profiling Run.")
 
     # Đảm bảo export_dir tồn tại
     os.makedirs(args['export_dir'], exist_ok=True)

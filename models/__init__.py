@@ -45,9 +45,12 @@ def get_backbone(cfg: Dict) -> nn.Module:
         deploy = cfg['backbone'].get('deploy', False)
         use_se = cfg['backbone'].get('use_se', False)
         num_dw_branches = cfg['backbone'].get('num_dw_branches', 4)
+        num_pw_branches = cfg['backbone'].get('num_pw_branches', 4)
         base_c = cfg['backbone'].get('base_c', 16)
         return RepDWNet(num_classes, deploy=deploy, use_se=use_se,
-                        num_dw_branches=num_dw_branches, base_c=base_c)
+                        num_dw_branches=num_dw_branches,
+                        num_pw_branches=num_pw_branches,
+                        base_c=base_c)
 
     raise ValueError('The requested backbone is not supported.')
 

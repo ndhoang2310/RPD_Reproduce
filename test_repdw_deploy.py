@@ -142,6 +142,46 @@ def test_gradient_backward():
     print("  ✓ All RepDW branches receive non-zero gradients in backward pass: PASSED")
 
 
+def test_p2_configurations():
+    print("\n[6/6] Verifying P2 Configurations: ex1 (DW=2, PW=4) & ex2 (DW=4, PW=2)...")
+    for name, dw_b, pw_b in [("ex1_dw2_pw4", 2, 4), ("ex2_dw4_pw2", 4, 2)]:
+        torch.manual_seed(42)
+        cfg = {
+            'backbone': {
+                'name': 'RepDWNet',
+                'num_classes': 3,
+                'pretrained': False,
+                'deploy': False,
+                'use_se': False,
+                'num_dw_branches': dw_b,
+                'num_pw_branches': pw_b,
+                'base_c': 16
+            }
+        }
+        model = get_backbone(cfg)
+        model.eval()
+
+        # Check branch counts in down1 Conv1
+        stage_dw = model.down1[1].Conv1[0]
+        stage_pw = model.down1[1].Conv1[1]
+        assert len(stage_dw.rbr_dw) == dw_b, f"{name}: Expected {dw_b} DW branches, got {len(stage_dw.rbr_dw)}"
+        assert len(stage_pw.rbr_conv) == pw_b, f"{name}: Expected {pw_b} PW branches, got {len(stage_pw.rbr_conv)}"
+
+        x = torch.randn(2, 3, 128, 128)
+        with torch.no_grad():
+            y_train = model(x)
+
+        deploy_model = RPD_model_deploy(model, do_copy=True)
+        deploy_model.eval()
+        with torch.no_grad():
+            y_deploy = deploy_model(x)
+
+        max_diff = (y_train - y_deploy).abs().max().item()
+        print(f"  ✓ {name} (DW={dw_b}, PW={pw_b}) Deploy max diff: {max_diff:.8e}")
+        assert max_diff < 1e-3, f"{name} deploy equivalence failed! Diff: {max_diff}"
+    print("  ✓ P2 ex1 & ex2 Structural & Numerical Equivalence: PASSED")
+
+
 if __name__ == '__main__':
     print("=" * 65)
     print("RUNNING REPDWNET COMPREHENSIVE VERIFICATION SUITE")
@@ -151,6 +191,7 @@ if __name__ == '__main__':
     test_repdwnet_numerical_deploy()
     test_fused_module_count()
     test_gradient_backward()
+    test_p2_configurations()
     print("\n" + "=" * 65)
-    print("ALL 5 VERIFICATION CHECKS PASSED SUCCESSFULLY!")
+    print("ALL 6 VERIFICATION CHECKS PASSED SUCCESSFULLY!")
     print("=" * 65)
